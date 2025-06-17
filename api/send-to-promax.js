@@ -1,23 +1,25 @@
+export default async function handler(req, res) {
+  try {
+    if (req.method !== 'POST') {
+      return res.status(405).send('Method Not Allowed');
+    }
 
-const fetch = require('node-fetch');
+    const { firstName, lastName, email, phone } = req.body;
 
-module.exports = async (req, res) => {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+    if (!firstName || !lastName || !email || !phone) {
+      return res.status(400).send('Missing required fields');
+    }
 
-  const { firstName, lastName, email, phone } = req.body;
-
-  if (!firstName || !lastName || !email || !phone) {
-    return res.status(400).json({ error: 'Missing required fields' });
-  }
-
-  const xml = `<?xml version="1.0" encoding="UTF-8" ?>
+    const adfPayload = `<?xml version="1.0" encoding="UTF-8" ?>
 <?adf version="1.0"?>
 <adf>
   <prospect>
     <requestdate>${new Date().toISOString()}</requestdate>
-    <vehicle interest="buy"><year/><make/><model/></vehicle>
+    <vehicle interest="buy">
+      <year></year>
+      <make></make>
+      <model></model>
+    </vehicle>
     <customer>
       <contact primarycontact="1">
         <name part="first">${firstName}</name>
@@ -25,14 +27,11 @@ module.exports = async (req, res) => {
         <email>${email}</email>
         <phone type="cellphone">${phone}</phone>
       </contact>
-      <comments><![CDATA[
-<cardotcom>
-  <notes>Disposition: Appointment Set</notes>
-  <appointmentdate>${new Date().toISOString().slice(0, 10)} 09:00:00</appointmentdate>
-  <dob>1970-01-01</dob>
-  <creditauthorization>True</creditauthorization>
-</cardotcom>
-      ]]></comments>
+      <comments><![CDATA[<cardotcom>
+        <notes>Lead submitted via Nsight ConvertFlow popup</notes>
+        <dob>1970-01-01</dob>
+        <creditauthorization>True</creditauthorization>
+      </cardotcom>]]></comments>
     </customer>
     <vendor>
       <id>102</id>
@@ -45,32 +44,21 @@ module.exports = async (req, res) => {
   </prospect>
 </adf>`;
 
-  const headers = {
-    "Authorization": "Basic " + Buffer.from("nsight@promaxonline.local:pQA6fvIv9P3ia2Fr").toString("base64"),
-    "Content-Type": "text/plain"
-  };
-
-  try {
-    const response = await fetch("https://leads.dealermarketingservices.com/ADF/ADFLeadReceiver.dll/ADFVendor", {
-      method: "POST",
-      headers: headers,
-      body: xml
+    const response = await fetch('https://leads.dealermarketingservices.com/ADF/ADFLeadReceiver.dll/ADFVendor', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from('nsight@promaxonline.local:pQA6fvIv9P3ia2Fr').toString('base64'),
+        'Content-Type': 'text/plain'
+      },
+      body: adfPayload
     });
 
-    const responseText = await response.text();
-    return res.status(200).json({
-      success: true,
-      xmlSent: xml,
-      headersSent: headers,
-      promaxResponse: responseText
-    });
+    const result = await response.text();
+    console.log("ProMax response:", result);
+
+    res.status(200).send('Lead sent to ProMax');
   } catch (error) {
     console.error("Error sending to ProMax:", error);
-    return res.status(500).json({
-      error: 'Failed to post to ProMax',
-      detail: error.message,
-      headersSent: headers,
-      xmlSent: xml
-    });
+    res.status(500).send('Internal Server Error');
   }
-};
+}
