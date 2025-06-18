@@ -4,9 +4,13 @@ export default async function handler(req, res) {
       return res.status(405).send('Method Not Allowed');
     }
 
+    console.log("Incoming Request Headers:", req.headers);
+    console.log("Incoming Request Body:", req.body);
+
     const { firstName, lastName, email, phone } = req.body;
 
     if (!firstName || !lastName || !email || !phone) {
+      console.error("Missing fields:", req.body);
       return res.status(400).send('Missing required fields');
     }
 
@@ -44,21 +48,23 @@ export default async function handler(req, res) {
   </prospect>
 </adf>`;
 
+    console.log("ADF Payload being sent:", adfPayload);
+
     const response = await fetch('https://leads.dealermarketingservices.com/ADF/ADFLeadReceiver.dll/ADFVendor', {
       method: 'POST',
       headers: {
         'Authorization': 'Basic ' + Buffer.from('nsight@promaxonline.local:pQA6fvIv9P3ia2Fr').toString('base64'),
-        'Content-Type': 'text/plain'
+        'Content-Type': 'application/xml'
       },
       body: adfPayload
     });
 
     const result = await response.text();
-    console.log("ProMax response:", result);
+    console.log("Response from ProMax:", result);
 
     res.status(200).send('Lead sent to ProMax');
   } catch (error) {
-    console.error("Error sending to ProMax:", error);
+    console.error("Error during lead post:", error);
     res.status(500).send('Internal Server Error');
   }
 }
